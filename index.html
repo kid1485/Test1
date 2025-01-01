@@ -56,7 +56,7 @@
     async function loadMKVWithASS(url) {
       // Cấu hình bộ nhớ cho WebAssembly khi khởi tạo FFmpeg
       const { createFFmpeg, fetchFile } = FFmpeg;
-      const memory = new WebAssembly.Memory({ initial: 1024, maximum: 2048 }); // Bộ nhớ ban đầu và tối đa
+      const memory = new WebAssembly.Memory({ initial: 256, maximum: 512 }); // Giảm bộ nhớ ban đầu và tối đa
 
       ffmpeg = createFFmpeg({
         log: true,
