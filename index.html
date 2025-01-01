@@ -48,6 +48,7 @@
     const ffmpeg = createFFmpeg({ log: true });
 
     async function loadFFmpeg() {
+      // Kiểm tra xem FFmpeg đã tải hay chưa, nếu chưa thì tải
       if (!ffmpeg.isLoaded()) {
         await ffmpeg.load();
       }
