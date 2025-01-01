@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Screenshot with Subtitles</title>
-  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.0/dist/ffmpeg.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/ffmpeg.wasm@0.11.0"></script>
   <script src="https://unpkg.com/libass-wasm/dist/libass.js"></script>
   <style>
     body {
@@ -21,6 +21,9 @@
       flex-wrap: wrap;
       gap: 10px;
       justify-content: center;
+    }
+    .screenshot {
+      position: relative;
     }
     .screenshot img {
       max-width: 100%;
@@ -42,17 +45,7 @@
     const canvas = document.getElementById("videoCanvas");
     const ctx = canvas.getContext("2d");
     const screenshotsDiv = document.getElementById("screenshots");
-    let videoElement, assRenderer;
-
-    const { createFFmpeg, fetchFile } = FFmpeg;
-    const ffmpeg = createFFmpeg({ log: true });
-
-    async function loadFFmpeg() {
-      // Kiểm tra xem FFmpeg đã tải hay chưa, nếu chưa thì tải
-      if (!ffmpeg.isLoaded()) {
-        await ffmpeg.load();
-      }
-    }
+    let videoElement, assRenderer, ffmpeg;
 
     async function fetchVideo(url) {
       const response = await fetch(url);
@@ -61,8 +54,18 @@
     }
 
     async function loadMKVWithASS(url) {
-      // Load FFmpeg
-      await loadFFmpeg();
+      // Cấu hình bộ nhớ cho WebAssembly khi khởi tạo FFmpeg
+      const { createFFmpeg, fetchFile } = FFmpeg;
+      const memory = new WebAssembly.Memory({ initial: 1024, maximum: 2048 }); // Bộ nhớ ban đầu và tối đa
+
+      ffmpeg = createFFmpeg({
+        log: true,
+        memory: memory, // Chỉ định bộ nhớ cho FFmpeg
+      });
+
+      if (!ffmpeg.isLoaded()) {
+        await ffmpeg.load();
+      }
 
       // Fetch video from URL
       const videoData = await fetchVideo(url);
@@ -92,7 +95,6 @@
       try {
         const { videoUrl, subtitleUrl } = await loadMKVWithASS(url);
 
-        // Create video element
         videoElement = document.createElement("video");
         videoElement.src = videoUrl;
         videoElement.crossOrigin = "anonymous";
@@ -142,6 +144,12 @@
       const screenshotContainer = document.createElement("div");
       screenshotContainer.className = "screenshot";
       screenshotContainer.appendChild(img);
+
+      // Allow right-click actions
+      img.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        alert("Right-click on the image to copy or save.");
+      });
 
       screenshotsDiv.appendChild(screenshotContainer);
     }
