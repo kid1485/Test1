@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Screenshot with Subtitles</title>
-  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.0/dist/ffmpeg.min.js"></script>
   <script src="https://unpkg.com/libass-wasm/dist/libass.js"></script>
   <style>
     body {
@@ -42,11 +42,13 @@
     const canvas = document.getElementById("videoCanvas");
     const ctx = canvas.getContext("2d");
     const screenshotsDiv = document.getElementById("screenshots");
-    let videoElement, assRenderer, ffmpeg;
+    let videoElement, assRenderer;
+
+    const { createFFmpeg, fetchFile } = FFmpeg;
+    const ffmpeg = createFFmpeg({ log: true });
 
     async function loadFFmpeg() {
-      if (!ffmpeg) {
-        ffmpeg = FFmpeg.createFFmpeg({ log: true });
+      if (!ffmpeg.isLoaded()) {
         await ffmpeg.load();
       }
     }
