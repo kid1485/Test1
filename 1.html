@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Screenshot with Subtitles</title>
+  <script src="https://cdn.jsdelivr.net/npm/ffmpeg.wasm@0.11.0"></script>
+  <script src="https://unpkg.com/libass-wasm/dist/libass.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    video, canvas {
+      max-width: 100%;
+    }
+    #screenshots {
+      margin-top: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+    }
+    .screenshot {
+      position: relative;
+    }
+    .screenshot img {
+      max-width: 100%;
+      border: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+  <h1>Screenshot Video with Subtitles</h1>
+  <input type="text" id="videoUrl" placeholder="Enter video URL here" style="width: 80%; padding: 10px;">
+  <div id="controls">
+    <button onclick="loadVideo()">Load Video</button>
+    <button onclick="captureScreenshot()">Capture Screenshot</button>
+  </div>
+  <canvas id="videoCanvas"></canvas>
+  <div id="screenshots"></div>
+
+  <script>
+    const canvas = document.getElementById("videoCanvas");
+    const ctx = canvas.getContext("2d");
+    const screenshotsDiv = document.getElementById("screenshots");
+    let videoElement, assRenderer, ffmpeg;
+
+    async function fetchVideo(url) {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch video");
+      return new Uint8Array(await response.arrayBuffer());
+    }
+
+    async function loadMKVWithASS(url) {
+      // Initialize ffmpeg
+      if (!ffmpeg) {
+        ffmpeg = await FFmpeg.createFFmpeg({ log: true });
+        await ffmpeg.load();
+      }
+
+      // Fetch video from URL
+      const videoData = await fetchVideo(url);
+      ffmpeg.FS("writeFile", "input.mkv", videoData);
+
+      // Extract video and subtitles
+      await ffmpeg.run("-i", "input.mkv", "-map", "0:v", "-c:v", "copy", "video.mp4");
+      await ffmpeg.run("-i", "input.mkv", "-map", "0:s:0", "subtitles.ass");
+
+      // Convert extracted video to Blob URL
+      const extractedVideo = ffmpeg.FS("readFile", "video.mp4");
+      const videoBlob = new Blob([extractedVideo.buffer], { type: "video/mp4" });
+      const videoUrl = URL.createObjectURL(videoBlob);
+
+      // Load subtitles
+      const subtitleData = ffmpeg.FS("readFile", "subtitles.ass");
+      const subtitleBlob = new Blob([subtitleData.buffer], { type: "text/plain" });
+      const subtitleUrl = URL.createObjectURL(subtitleBlob);
+
+      return { videoUrl, subtitleUrl };
+    }
+
+    async function loadVideo() {
+      const url = document.getElementById("videoUrl").value;
+      if (!url) return alert("Please enter a valid video URL.");
+
+      try {
+        const { videoUrl, subtitleUrl } = await loadMKVWithASS(url);
+
+        videoElement = document.createElement("video");
+        videoElement.src = videoUrl;
+        videoElement.crossOrigin = "anonymous";
+        videoElement.controls = true;
+
+        videoElement.addEventListener("loadedmetadata", () => {
+          canvas.width = videoElement.videoWidth;
+          canvas.height = videoElement.videoHeight;
+        });
+
+        videoElement.addEventListener("play", async () => {
+          if (!assRenderer) {
+            assRenderer = await LibASS.create(canvas, subtitleUrl);
+          }
+          drawFrame();
+        });
+
+        document.body.appendChild(videoElement);
+      } catch (error) {
+        alert("Failed to load video: " + error.message);
+      }
+    }
+
+    function drawFrame() {
+      if (videoElement.paused || videoElement.ended) return;
+
+      ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+      assRenderer.resize(canvas.width, canvas.height);
+      assRenderer.render(videoElement.currentTime * 1000);
+      requestAnimationFrame(drawFrame);
+    }
+
+    function captureScreenshot() {
+      if (!videoElement) return alert("Please play a video first.");
+      
+      // Convert canvas to data URL
+      const screenshotData = canvas.toDataURL("image/png");
+      
+      // Create an image element for the screenshot
+      const img = document.createElement("img");
+      img.src = screenshotData;
+      img.alt = "Screenshot";
+      img.style.width = `${canvas.width}px`;
+      img.style.height = `${canvas.height}px`;
+
+      // Add the screenshot to the page
+      const screenshotContainer = document.createElement("div");
+      screenshotContainer.className = "screenshot";
+      screenshotContainer.appendChild(img);
+
+      // Allow right-click actions
+      img.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        alert("Right-click on the image to copy or save.");
+      });
+
+      screenshotsDiv.appendChild(screenshotContainer);
+    }
+  </script>
+</body>
+</html>
