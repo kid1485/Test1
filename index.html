@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Screenshot with Subtitles</title>
-  <script src="https://cdn.jsdelivr.net/npm/ffmpeg.wasm@0.11.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.0"></script>
   <script src="https://unpkg.com/libass-wasm/dist/libass.js"></script>
   <style>
     body {
@@ -21,9 +21,6 @@
       flex-wrap: wrap;
       gap: 10px;
       justify-content: center;
-    }
-    .screenshot {
-      position: relative;
     }
     .screenshot img {
       max-width: 100%;
@@ -47,6 +44,13 @@
     const screenshotsDiv = document.getElementById("screenshots");
     let videoElement, assRenderer, ffmpeg;
 
+    async function loadFFmpeg() {
+      if (!ffmpeg) {
+        ffmpeg = FFmpeg.createFFmpeg({ log: true });
+        await ffmpeg.load();
+      }
+    }
+
     async function fetchVideo(url) {
       const response = await fetch(url);
       if (!response.ok) throw new Error("Failed to fetch video");
@@ -54,11 +58,8 @@
     }
 
     async function loadMKVWithASS(url) {
-      // Initialize ffmpeg
-      if (!ffmpeg) {
-        ffmpeg = await FFmpeg.createFFmpeg({ log: true });
-        await ffmpeg.load();
-      }
+      // Load FFmpeg
+      await loadFFmpeg();
 
       // Fetch video from URL
       const videoData = await fetchVideo(url);
@@ -88,6 +89,7 @@
       try {
         const { videoUrl, subtitleUrl } = await loadMKVWithASS(url);
 
+        // Create video element
         videoElement = document.createElement("video");
         videoElement.src = videoUrl;
         videoElement.crossOrigin = "anonymous";
@@ -137,12 +139,6 @@
       const screenshotContainer = document.createElement("div");
       screenshotContainer.className = "screenshot";
       screenshotContainer.appendChild(img);
-
-      // Allow right-click actions
-      img.addEventListener("contextmenu", (e) => {
-        e.preventDefault();
-        alert("Right-click on the image to copy or save.");
-      });
 
       screenshotsDiv.appendChild(screenshotContainer);
     }
